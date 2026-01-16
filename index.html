@@ -2,30 +2,73 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FF Mestre - Survivor Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FF Mestre Mobile</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #0a0a0a; color: white; font-family: 'Arial Black', sans-serif; }
-        canvas { display: block; cursor: crosshair; }
-        #ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        .hud-box { background: rgba(0,0,0,0.6); border-left: 4px solid #ff0000; padding: 10px; pointer-events: auto; }
-        #overlay {
-            position: absolute; inset: 0; background: radial-gradient(circle, rgba(50,0,0,0.8) 0%, rgba(0,0,0,0.95) 100%);
-            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100;
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #050505; 
+            color: white; 
+            font-family: 'Arial Black', sans-serif;
+            user-select: none;
+            touch-action: none;
         }
-        .btn-play {
-            background: linear-gradient(to bottom, #ff4d4d, #800000);
-            padding: 20px 60px; border-radius: 8px; font-size: 24px; cursor: pointer; border: 2px solid #ffcc00;
-            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5); pointer-events: auto; text-transform: uppercase;
+        canvas { display: block; }
+        
+        /* Controles Mobile */
+        .touch-controls {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 40px;
+            pointer-events: none;
+            z-index: 50;
+        }
+        .joystick-base {
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+        }
+        .joystick-stick {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+        }
+        .btn-shoot {
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 0, 0, 0.4);
+            border: 4px solid #ff4444;
+            border-radius: 50%;
+            pointer-events: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: white;
+            active: scale(0.9);
+        }
+
+        #overlay {
+            position: fixed; inset: 0; background: #000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000;
         }
         .shake { animation: shake 0.2s; }
         @keyframes shake {
-            0% { transform: translate(1px, 1px) rotate(0deg); }
-            20% { transform: translate(-3px, 0px) rotate(1deg); }
-            40% { transform: translate(3px, 2px) rotate(-1deg); }
-            60% { transform: translate(-3px, 1px) rotate(0deg); }
-            100% { transform: translate(0px, 0px) rotate(0deg); }
+            0% { transform: translate(2px, 2px); }
+            50% { transform: translate(-2px, -2px); }
+            100% { transform: translate(0, 0); }
         }
     </style>
 </head>
@@ -33,28 +76,32 @@
 
 <div id="overlay">
     <div class="mb-6 text-center">
-        <h1 class="text-6xl font-black text-red-600 italic tracking-tighter">BATTLE ROYALE</h1>
-        <p class="text-yellow-500 text-xl font-bold">DESAFIO DO MESTRE</p>
+        <h1 class="text-5xl font-black text-red-600 italic">MESTRE SURVIVOR</h1>
+        <p class="text-yellow-500 font-bold">TOQUE PARA JOGAR</p>
     </div>
-    <button class="btn-play" onclick="initGame()">ENTRAR NA PARTIDA</button>
-    <p class="mt-8 text-gray-400 text-sm">WASD - MOVER | MOUSE - ATIRAR</p>
+    <button id="start-btn" class="bg-red-600 hover:bg-red-700 text-white px-12 py-5 rounded-full text-2xl font-bold border-b-4 border-red-900 active:transform active:scale-95">
+        INICIAR
+    </button>
 </div>
 
-<div id="ui" class="p-6 hidden">
-    <div class="flex justify-between items-start">
-        <div class="hud-box">
-            <div class="text-xs text-gray-400 uppercase">Saúde</div>
-            <div class="w-64 h-5 bg-gray-900 border border-gray-700 mt-1">
-                <div id="hp-bar" class="h-full bg-gradient-to-r from-red-700 to-red-500 w-full transition-all duration-300"></div>
-            </div>
-            <div class="text-xl font-bold italic" id="hp-val">100 HP</div>
+<div id="hud" class="fixed top-0 left-0 w-full p-4 pointer-events-none hidden flex justify-between">
+    <div class="bg-black/50 p-2 rounded border-l-4 border-red-600">
+        <div id="hp-bar" class="w-32 h-3 bg-gray-800 rounded">
+            <div id="hp-fill" class="h-full bg-red-600 w-full transition-all"></div>
         </div>
-        <div class="hud-box text-right border-l-0 border-r-4 border-yellow-500">
-            <div class="text-xs text-gray-400 uppercase">Patente Atual</div>
-            <div id="rank-label" class="text-2xl font-black text-yellow-500 italic">PLATINA</div>
-            <div class="text-lg" id="score-label">KILLS: 0</div>
-        </div>
+        <div class="text-xs font-bold mt-1">HP: <span id="hp-txt">100</span></div>
     </div>
+    <div class="text-right bg-black/50 p-2 rounded border-r-4 border-yellow-500">
+        <div id="rank-txt" class="text-yellow-500 font-black italic">PLATINA</div>
+        <div id="score-txt" class="text-white text-sm">KILLS: 0</div>
+    </div>
+</div>
+
+<div class="touch-controls hidden" id="controls">
+    <div class="joystick-base" id="joy-base">
+        <div class="joystick-stick" id="joy-stick"></div>
+    </div>
+    <div class="btn-shoot" id="btn-fire">TIRO</div>
 </div>
 
 <canvas id="game"></canvas>
@@ -62,115 +109,37 @@
 <script>
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-    let gameRunning = false;
-    let score = 0;
-    let shakeTime = 0;
+    const startBtn = document.getElementById('start-btn');
+    const overlay = document.getElementById('overlay');
     
-    const player = {
-        x: 0, y: 0, radius: 20, angle: 0,
-        hp: 100, speed: 5,
-        color: '#ff3333'
-    };
-
+    let audioCtx;
+    let gameActive = false;
+    let score = 0;
+    let player = { x: 0, y: 0, radius: 18, angle: 0, hp: 100, speed: 4 };
     let enemies = [];
     let bullets = [];
     let particles = [];
-    let keys = {};
+    
+    // Joystick state
+    let joyData = { x: 0, y: 0, active: false };
 
-    // --- SISTEMA DE ÁUDIO (Sintetizador) ---
-    function playShootSound() {
+    function initAudio() {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function playSound(freq, type, duration, vol) {
+        if (!audioCtx) return;
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         osc.start();
-        osc.stop(audioCtx.currentTime + 0.1);
-    }
-
-    function playHitSound() {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(60, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.2);
-    }
-
-    function startBGM() {
-        const notes = [110, 123, 130, 146]; // Bassline tensa
-        let step = 0;
-        setInterval(() => {
-            if(!gameRunning) return;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(notes[step % notes.length], audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.5);
-            step++;
-        }, 500);
-    }
-
-    // --- MECÂNICAS ---
-    function createParticles(x, y, color) {
-        for(let i=0; i<8; i++) {
-            particles.push({
-                x, y,
-                vx: (Math.random() - 0.5) * 10,
-                vy: (Math.random() - 0.5) * 10,
-                life: 1.0,
-                color
-            });
-        }
-    }
-
-    function initGame() {
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        document.getElementById('overlay').classList.add('hidden');
-        document.getElementById('ui').classList.remove('hidden');
-        gameRunning = true;
-        score = 0;
-        player.hp = 100;
-        enemies = [];
-        bullets = [];
-        particles = [];
-        resize();
-        startBGM();
-        spawnManager();
-        requestAnimationFrame(update);
-    }
-
-    function spawnManager() {
-        if(!gameRunning) return;
-        let side = Math.floor(Math.random() * 4);
-        let ex, ey;
-        if(side === 0) { ex = -50; ey = Math.random() * canvas.height; }
-        else if(side === 1) { ex = canvas.width + 50; ey = Math.random() * canvas.height; }
-        else if(side === 2) { ex = Math.random() * canvas.width; ey = -50; }
-        else { ex = Math.random() * canvas.width; ey = canvas.height + 50; }
-
-        enemies.push({
-            x: ex, y: ey,
-            radius: 18,
-            hp: 2,
-            speed: 2 + (score/20)
-        });
-        setTimeout(spawnManager, Math.max(300, 1200 - (score * 5)));
+        osc.stop(audioCtx.currentTime + duration);
     }
 
     function resize() {
@@ -180,145 +149,174 @@
         player.y = canvas.height / 2;
     }
 
-    window.addEventListener('resize', resize);
+    // Touch/Joystick Logic
+    const joyBase = document.getElementById('joy-base');
+    const joyStick = document.getElementById('joy-stick');
+
+    function handleTouch(e) {
+        if (!gameActive) return;
+        const touch = e.touches[0];
+        const rect = joyBase.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        let dx = touch.clientX - centerX;
+        let dy = touch.clientY - centerY;
+        const dist = Math.hypot(dx, dy);
+        const maxDist = rect.width / 2;
+
+        if (dist > maxDist) {
+            dx = (dx / dist) * maxDist;
+            dy = (dy / dist) * maxDist;
+        }
+
+        joyData.x = dx / maxDist;
+        joyData.y = dy / maxDist;
+        joyStick.style.transform = `translate(${dx}px, ${dy}px)`;
+        
+        // Update player angle based on movement
+        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+            player.angle = Math.atan2(dy, dx);
+        }
+    }
+
+    joyBase.addEventListener('touchstart', (e) => { joyData.active = true; handleTouch(e); });
+    joyBase.addEventListener('touchmove', handleTouch);
+    joyBase.addEventListener('touchend', () => {
+        joyData.active = false;
+        joyData.x = 0; joyData.y = 0;
+        joyStick.style.transform = `translate(0, 0)`;
+    });
+
+    document.getElementById('btn-fire').addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        fire();
+    });
+
+    // Keyboard support for PC
+    let keys = {};
     window.addEventListener('keydown', e => keys[e.code] = true);
     window.addEventListener('keyup', e => keys[e.code] = false);
-    window.addEventListener('mousemove', e => {
-        player.angle = Math.atan2(e.clientY - player.y, e.clientX - player.x);
-    });
-    window.addEventListener('mousedown', () => {
-        if(!gameRunning) return;
-        playShootSound();
+    window.addEventListener('mousedown', (e) => { if(gameActive) fire(); });
+
+    function fire() {
+        playSound(200, 'square', 0.1, 0.1);
         bullets.push({
-            x: player.x + Math.cos(player.angle) * 30,
-            y: player.y + Math.sin(player.angle) * 30,
-            vx: Math.cos(player.angle) * 12,
-            vy: Math.sin(player.angle) * 12
+            x: player.x + Math.cos(player.angle) * 20,
+            y: player.y + Math.sin(player.angle) * 20,
+            vx: Math.cos(player.angle) * 10,
+            vy: Math.sin(player.angle) * 10
         });
-    });
+    }
+
+    function spawnEnemy() {
+        if (!gameActive) return;
+        const side = Math.floor(Math.random() * 4);
+        let x, y;
+        if (side === 0) { x = -30; y = Math.random() * canvas.height; }
+        else if (side === 1) { x = canvas.width + 30; y = Math.random() * canvas.height; }
+        else if (side === 2) { x = Math.random() * canvas.width; y = -30; }
+        else { x = Math.random() * canvas.width; y = canvas.height + 30; }
+
+        enemies.push({ x, y, radius: 15, speed: 1.5 + (score/50) });
+        setTimeout(spawnEnemy, Math.max(400, 1500 - (score * 10)));
+    }
 
     function update() {
-        if(!gameRunning) return;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (!gameActive) return;
+        ctx.fillStyle = '#050505';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Desenhar Fundo (Grid)
-        ctx.strokeStyle = '#1a1a1a';
-        ctx.lineWidth = 1;
-        for(let i=0; i<canvas.width; i+=50) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
-        for(let i=0; i<canvas.height; i+=50) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
+        // Movimento
+        let moveX = joyData.x;
+        let moveY = joyData.y;
 
-        // Movimento Jogador
-        if(keys['KeyW']) player.y -= player.speed;
-        if(keys['KeyS']) player.y += player.speed;
-        if(keys['KeyA']) player.x -= player.speed;
-        if(keys['KeyD']) player.x += player.speed;
+        // PC Controls override
+        if (keys['KeyW']) moveY = -1;
+        if (keys['KeyS']) moveY = 1;
+        if (keys['KeyA']) moveX = -1;
+        if (keys['KeyD']) moveX = 1;
 
-        // Desenhar Jogador (Sprite de Triângulo/Personagem)
+        player.x += moveX * player.speed;
+        player.y += moveY * player.speed;
+
+        // Limites da tela
+        player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+        player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
+
+        // Draw Player
         ctx.save();
         ctx.translate(player.x, player.y);
         ctx.rotate(player.angle);
-        // Corpo
         ctx.fillStyle = '#ff4444';
         ctx.beginPath();
-        ctx.moveTo(25, 0); ctx.lineTo(-15, -20); ctx.lineTo(-15, 20); ctx.closePath();
+        ctx.moveTo(20, 0); ctx.lineTo(-10, -15); ctx.lineTo(-10, 15); ctx.closePath();
         ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
         ctx.stroke();
-        // Mochila/Detalhe
-        ctx.fillStyle = '#800000';
-        ctx.fillRect(-10, -10, 10, 20);
         ctx.restore();
-
-        // Partículas
-        particles.forEach((p, i) => {
-            p.x += p.vx; p.y += p.vy; p.life -= 0.02;
-            ctx.globalAlpha = p.life;
-            ctx.fillStyle = p.color;
-            ctx.fillRect(p.x, p.y, 4, 4);
-            if(p.life <= 0) particles.splice(i, 1);
-        });
-        ctx.globalAlpha = 1;
 
         // Bullets
         bullets.forEach((b, i) => {
             b.x += b.vx; b.y += b.vy;
-            ctx.fillStyle = '#ffff00';
-            ctx.beginPath();
-            ctx.arc(b.x, b.y, 4, 0, Math.PI*2);
-            ctx.fill();
-            if(b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) bullets.splice(i, 1);
+            ctx.fillStyle = 'yellow';
+            ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill();
+            if (b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) bullets.splice(i, 1);
         });
 
-        // Inimigos
+        // Enemies
         enemies.forEach((en, i) => {
-            let dx = player.x - en.x;
-            let dy = player.y - en.y;
-            let dist = Math.hypot(dx, dy);
-            en.x += (dx/dist) * en.speed;
-            en.y += (dy/dist) * en.speed;
+            const angle = Math.atan2(player.y - en.y, player.x - en.x);
+            en.x += Math.cos(angle) * en.speed;
+            en.y += Math.sin(angle) * en.speed;
 
-            // Desenhar Inimigo
             ctx.fillStyle = '#444';
-            ctx.beginPath();
-            ctx.arc(en.x, en.y, en.radius, 0, Math.PI*2);
-            ctx.fill();
-            ctx.strokeStyle = '#ff0000';
-            ctx.stroke();
+            ctx.beginPath(); ctx.arc(en.x, en.y, en.radius, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = 'red'; ctx.stroke();
 
-            // Colisão Bala
+            // Hit by bullet
             bullets.forEach((b, bi) => {
-                if(Math.hypot(b.x - en.x, b.y - en.y) < en.radius + 5) {
-                    createParticles(en.x, en.y, '#ff0000');
+                if (Math.hypot(b.x - en.x, b.y - en.y) < en.radius + 4) {
                     enemies.splice(i, 1);
                     bullets.splice(bi, 1);
                     score++;
-                    playHitSound();
-                    updateUI();
+                    playSound(100, 'sawtooth', 0.1, 0.05);
+                    document.getElementById('score-txt').innerText = "KILLS: " + score;
+                    if(score > 50) document.getElementById('rank-txt').innerText = "MESTRE";
+                    else if(score > 20) document.getElementById('rank-txt').innerText = "DIAMANTE";
                 }
             });
 
-            // Dano no Jogador
-            if(dist < player.radius + en.radius) {
+            // Hit player
+            if (Math.hypot(player.x - en.x, player.y - en.y) < player.radius + en.radius) {
                 player.hp -= 0.5;
-                shakeTime = 10;
-                document.body.classList.add('shake');
-                updateUI();
-                if(player.hp <= 0) endGame();
+                document.getElementById('hp-fill').style.width = player.hp + "%";
+                document.getElementById('hp-txt').innerText = Math.ceil(player.hp);
+                if (player.hp <= 0) {
+                    gameActive = false;
+                    location.reload(); // Simplificado para reiniciar
+                }
             }
         });
-
-        if(shakeTime > 0) {
-            shakeTime--;
-            if(shakeTime === 0) document.body.classList.remove('shake');
-        }
 
         requestAnimationFrame(update);
     }
 
-    function updateUI() {
-        document.getElementById('hp-bar').style.width = player.hp + "%";
-        document.getElementById('hp-val').innerText = Math.ceil(player.hp) + " HP";
-        document.getElementById('score-label').innerText = "KILLS: " + score;
-        
-        let rank = "PLATINA";
-        let color = "#fbbf24";
-        if(score > 20) { rank = "DIAMANTE"; color = "#60a5fa"; }
-        if(score > 50) { rank = "MESTRE"; color = "#ef4444"; }
-        
-        const label = document.getElementById('rank-label');
-        label.innerText = rank;
-        label.style.color = color;
-    }
+    startBtn.addEventListener('click', () => {
+        initAudio();
+        overlay.style.display = 'none';
+        document.getElementById('hud').classList.remove('hidden');
+        document.getElementById('controls').classList.remove('hidden');
+        gameActive = true;
+        resize();
+        spawnEnemy();
+        update();
+    });
 
-    function endGame() {
-        gameRunning = false;
-        document.getElementById('overlay').classList.remove('hidden');
-        document.getElementById('overlay').querySelector('h1').innerText = "ELIMINADO";
-        document.getElementById('overlay').querySelector('p').innerText = "SCORE FINAL: " + score;
-    }
-
+    window.addEventListener('resize', resize);
     resize();
+
 </script>
 </body>
 </html>
