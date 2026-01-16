@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desafio do Mestre - Battle Royale</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: none;
+        }
+        canvas {
+            display: block;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+        }
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            color: white;
+            padding: 20px;
+        }
+        .rank-card {
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #ff4444;
+            border-radius: 10px;
+            padding: 10px;
+            pointer-events: auto;
+        }
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .btn {
+            background: linear-gradient(135deg, #ff4444 0%, #990000 100%);
+            color: white;
+            padding: 15px 40px;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            margin-top: 20px;
+            transition: transform 0.2s;
+            pointer-events: auto;
+        }
+        .btn:hover { transform: scale(1.1); }
+    </style>
+</head>
+<body>
+
+<div id="overlay">
+    <h1 class="text-5xl font-bold text-red-600 mb-4">RUMO AO MESTRE</h1>
+    <p class="text-gray-300 mb-8">Use WASD para mover e MOUSE para atirar.</p>
+    <button class="btn" onclick="startGame()">INICIAR PARTIDA</button>
+</div>
+
+<div id="ui-layer">
+    <div class="flex justify-between items-start">
+        <div class="rank-card">
+            <div id="hp-bar" class="w-48 h-4 bg-gray-800 rounded overflow-hidden">
+                <div id="hp-fill" class="h-full bg-red-600 w-full transition-all"></div>
+            </div>
+            <p class="mt-2 font-bold">HP: <span id="hp-text">100</span></p>
+        </div>
+        <div class="rank-card text-center">
+            <p class="text-yellow-500 font-bold text-xl">PATENTE: <span id="rank-name">PLATINA</span></p>
+            <p>Pontos: <span id="score">0</span></p>
+        </div>
+    </div>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const overlay = document.getElementById('overlay');
+    const hpFill = document.getElementById('hp-fill');
+    const hpText = document.getElementById('hp-text');
+    const scoreText = document.getElementById('score');
+    const rankName = document.getElementById('rank-name');
+
+    let gameActive = false;
+    let score = 0;
+    let player = {
+        x: 0,
+        y: 0,
+        radius: 15,
+        color: '#ff4444',
+        hp: 100,
+        speed: 4
+    };
+
+    let enemies = [];
+    let bullets = [];
+    let keys = {};
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        player.x = canvas.width / 2;
+        player.y = canvas.height / 2;
+    }
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('keydown', e => keys[e.code] = true);
+    window.addEventListener('keyup', e => keys[e.code] = false);
+    window.addEventListener('mousedown', shoot);
+
+    function shoot(e) {
+        if (!gameActive) return;
+        const angle = Math.atan2(e.clientY - player.y, e.clientX - player.x);
+        bullets.push({
+            x: player.x,
+            y: player.y,
+            radius: 4,
+            color: '#ffff00',
+            velocity: {
+                x: Math.cos(angle) * 10,
+                y: Math.sin(angle) * 10
+            }
+        });
+    }
+
+    function spawnEnemy() {
+        if (!gameActive) return;
+        let x, y;
+        if (Math.random() < 0.5) {
+            x = Math.random() < 0.5 ? -30 : canvas.width + 30;
+            y = Math.random() * canvas.height;
+        } else {
+            x = Math.random() * canvas.width;
+            y = Math.random() < 0.5 ? -30 : canvas.height + 30;
+        }
+        
+        enemies.push({
+            x, y,
+            radius: 12 + Math.random() * 10,
+            color: '#555',
+            speed: 1.5 + (score / 1000)
+        });
+        
+        setTimeout(spawnEnemy, Math.max(200, 1000 - (score / 10)));
+    }
+
+    function updateRank() {
+        if (score < 500) rankName.innerText = "PLATINA";
+        else if (score < 1500) {
+            rankName.innerText = "DIAMANTE";
+            rankName.style.color = "#44ccff";
+        } else {
+            rankName.innerText = "MESTRE";
+            rankName.style.color = "#ffdd00";
+        }
+    }
+
+    function startGame() {
+        score = 0;
+        player.hp = 100;
+        enemies = [];
+        bullets = [];
+        gameActive = true;
+        overlay.style.display = 'none';
+        resize();
+        spawnEnemy();
+        animate();
+    }
+
+    function gameOver() {
+        gameActive = false;
+        overlay.style.display = 'flex';
+        overlay.querySelector('h1').innerText = "FIM DE JOGO";
+        overlay.querySelector('p').innerText = `Você atingiu ${score} pontos na patente ${rankName.innerText}!`;
+    }
+
+    function animate() {
+        if (!gameActive) return;
+        requestAnimationFrame(animate);
+        ctx.fillStyle = 'rgba(15, 15, 15, 0.4)'; // Efeito de rastro
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Movimento do Jogador
+        if (keys['KeyW'] && player.y > 0) player.y -= player.speed;
+        if (keys['KeyS'] && player.y < canvas.height) player.y += player.speed;
+        if (keys['KeyA'] && player.x > 0) player.x -= player.speed;
+        if (keys['KeyD'] && player.x < canvas.width) player.x += player.speed;
+
+        // Desenhar Jogador (Estilo ícone simplificado)
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+        ctx.fillStyle = player.color;
+        ctx.fill();
+        ctx.strokeStyle = 'white';
+        ctx.stroke();
+
+        // Balas
+        bullets.forEach((bullet, index) => {
+            bullet.x += bullet.velocity.x;
+            bullet.y += bullet.velocity.y;
+            
+            ctx.beginPath();
+            ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
+            ctx.fillStyle = bullet.color;
+            ctx.fill();
+
+            if (bullet.x < 0 || bullet.x > canvas.width || bullet.y < 0 || bullet.y > canvas.height) {
+                bullets.splice(index, 1);
+            }
+        });
+
+        // Inimigos
+        enemies.forEach((enemy, eIndex) => {
+            const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+            enemy.x += Math.cos(angle) * enemy.speed;
+            enemy.y += Math.sin(angle) * enemy.speed;
+
+            ctx.beginPath();
+            ctx.arc(enemy.x, enemy.y, enemy.radius, 0, Math.PI * 2);
+            ctx.fillStyle = enemy.color;
+            ctx.fill();
+
+            // Colisão com jogador
+            const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+            if (dist < player.radius + enemy.radius) {
+                player.hp -= 0.5;
+                hpFill.style.width = player.hp + "%";
+                hpText.innerText = Math.ceil(player.hp);
+                if (player.hp <= 0) gameOver();
+            }
+
+            // Colisão com balas
+            bullets.forEach((bullet, bIndex) => {
+                const bDist = Math.hypot(bullet.x - enemy.x, bullet.y - enemy.y);
+                if (bDist < bullet.radius + enemy.radius) {
+                    enemies.splice(eIndex, 1);
+                    bullets.splice(bIndex, 1);
+                    score += 10;
+                    scoreText.innerText = score;
+                    updateRank();
+                }
+            });
+        });
+    }
+
+    resize();
+</script>
+
+</body>
+</html>
